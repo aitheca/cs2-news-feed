@@ -1,0 +1,24 @@
+name: Update TG Feed
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and parse RSS
+        run: python3 scripts/fetch_feed.py
+
+      - name: Commit feed.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add docs/feed.json
+          git diff --cached --quiet || git commit -m "update feed"
+          git push
