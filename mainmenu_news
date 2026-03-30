@@ -1,0 +1,48 @@
+'use strict';
+var NewsPanel=function(){
+var URL='https://YOUR_GITHUB_USERNAME.github.io/cs2-news-feed/feed.json';
+var _GetRssFeed=function(){
+$.AsyncWebRequest(URL,{type:'GET',complete:function(d,s){
+if(s==='success'&&d){
+try{NewsPanel.OnRssFeedReceived(JSON.parse(d));}
+catch(e){BlogAPI.RequestRSSFeed();}
+}else{BlogAPI.RequestRSSFeed();}
+}});
+};
+var _OnRssFeedReceived=function(feed){
+if($.GetContextPanel().BHasClass('news-panel--hide-news-panel'))return;
+var el=$.GetContextPanel().FindChildInLayoutFile('NewsPanelLister');
+if(!el||!feed)return;
+el.RemoveAndDeleteChildren();
+var first=false;
+var last=GameInterfaceAPI.GetSettingString('ui_news_last_read_link');
+feed.items.forEach(function(item,i){
+var e=$.CreatePanel('Panel',el,'NE'+i,{acceptsinput:true});
+if(!first){
+first=true;e.AddClass('new');
+if(item.link!=last){
+UiToolkitAPI.ShowCustomLayoutPopupParameters('','file://{resources}/layout/popups/popup_news.xml','date='+item.date+'&title='+item.title+'&link='+item.link);
+}
+GameInterfaceAPI.SetSettingString('ui_news_last_read_link',item.link);
+}
+e.BLoadLayoutSnippet('news-full-entry');
+var img=e.FindChildInLayoutFile('NewsHeaderImage');
+img.SetImage(item.imageUrl||'file://{images}/store/default-news.png');
+var info=$.CreatePanel('Panel',e,'NI'+i);
+info.BLoadLayoutSnippet('news-info');
+info.SetDialogVariable('news_item_date',item.date);
+info.SetDialogVariable('news_item_title',item.title);
+info.SetDialogVariable('news_item_body',item.description);
+e.FindChildInLayoutFile('NewsEntryBlurTarget').AddBlurPanel(info);
+e.SetPanelEvent('onactivate',function(link,entry,clr){
+SteamOverlayAPI.OpenURL(link);
+if(clr){GameInterfaceAPI.SetSettingString('ui_news_last_read_link',link);entry.RemoveClass('new');}
+}.bind(SteamOverlayAPI,item.link,e,i==0));
+});
+};
+return{GetRssFeed:_GetRssFeed,OnRssFeedReceived:_OnRssFeedReceived};
+}();
+(function(){
+NewsPanel.GetRssFeed();
+$.RegisterForUnhandledEvent('PanoramaComponent_Blog_RSSFeedReceived',NewsPanel.OnRssFeedReceived);
+})();
